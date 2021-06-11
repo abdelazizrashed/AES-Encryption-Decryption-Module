@@ -26,9 +26,13 @@ class AESKey:
             self.KeySchedule256()
             
         
-    #Generate a random key of size key_size
-    #Don't call it outside the AES class 
+     
     def GenerateKey(self):
+        """
+        Generate a random key of size key_size.
+        returns a list of random integers from 0 to 255 with a length depeding on the key size. 
+        Don't call it outside the AES class
+        """
         key = []
         for i in range(int(self.key_size/8)):
             key.append(random.randint(0,255))
