@@ -3,7 +3,7 @@ from pyfinite import ffield
 from pyfinite import genericmatrix
 import AESKey as keym
 import HelpingFunctions as helpfs
-import  math
+import math
 
 
 class AES:
@@ -49,44 +49,83 @@ class AES:
         str -> for string input
         hex -> array  of  hex values
         """
-        ciphertext =  [];
-        #check that the data doesn't  excced 1 byte each
+        ciphertext = []
+        # check that the data doesn't  excced 1 byte each
         for i in range(0, len(plaintext) - 1):
             if plaintext[i] > 255:
-                raise  ValueError("plaintext  elements cannot excceed  1 byte")
-        for i in  range(0, math.ceil(len(plaintext)/16)):
-            plaintext_seg = plaintext[i*16: i*16-1]
-            used_key_words =  []
+                raise ValueError("plaintext  elements cannot excceed  1 byte")
+        for i in range(0, math.ceil(len(plaintext) / 16)):
+            plaintext_seg = plaintext[i * 16 : i * 16 - 1]
+            used_key_words = []
             if self.key_size == 128:
-                used_key_words  = self.words[0: 3]
+                used_key_words = self.words[0:3]
             elif self.key_size == 192:
-                used_key_words  = self.words[0: 3]
+                used_key_words = self.words[0:3]
             else:
-                used_key_words  = self.words[0: 3]
+                used_key_words = self.words[0:3]
 
-            plaintext_seg = self.KeyAdd(plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words))
-            for j in range(1, self.n_rounds -1):
+            plaintext_seg = self.KeyAdd(
+                plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
+            )
+            for j in range(1, self.n_rounds - 1):
                 if self.key_size == 128:
-                    used_key_words  = self.words[j*4: j*4-3]
+                    used_key_words = self.words[j * 4 : j * 4 - 3]
                 elif self.key_size == 192:
-                    used_key_words  = self.words[j*6: j*6-3]
+                    used_key_words = self.words[j * 6 : j * 6 - 3]
                 else:
-                    used_key_words  = self.words[j*8: j*8-3]
-                plaintext_seg = self.EncryRound(plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words))
-            
+                    used_key_words = self.words[j * 8 : j * 8 - 3]
+                plaintext_seg = self.EncryRound(
+                    plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
+                )
+
             if self.key_size == 128:
-                used_key_words  = self.words[j*4: j*4-3]
+                used_key_words = self.words[self.n_rounds * 4 : self.n_rounds * 4 - 3]
             elif self.key_size == 192:
-                used_key_words  = self.words[j*6: j*6-3]
+                used_key_words = self.words[self.n_rounds * 6 : self.n_rounds * 6 - 3]
             else:
-                used_key_words  = self.words[j*8: j*8-3]
-            plaintext_seg = self.final_encryption_round(plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words))
+                used_key_words = self.words[self.n_rounds * 8 : self.n_rounds * 8 - 3]
+            plaintext_seg = self.final_encryption_round(
+                plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
+            )
             ciphertext.append(plaintext_seg)
         return ciphertext
 
+    def decrypt_encryption_text(self, ciphertext, ciphertext_type="int"):
+        for i in range(0, math.ceil(len(ciphertext) / 16)):
+            plaintext_seg = plaintext[i * 16 : i * 16 - 1]
+            used_key_words = []
+            if self.key_size == 128:
+                used_key_words = self.words[0:3]
+            elif self.key_size == 192:
+                used_key_words = self.words[0:3]
+            else:
+                used_key_words = self.words[0:3]
 
-    def decrypt_encryption_text(self, encryption_text, plaintext_type="int"):
-        pass
+            plaintext_seg = self.KeyAdd(
+                plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
+            )
+            for j in range(1, self.n_rounds - 1):
+                if self.key_size == 128:
+                    used_key_words = self.words[j * 4 : j * 4 - 3]
+                elif self.key_size == 192:
+                    used_key_words = self.words[j * 6 : j * 6 - 3]
+                else:
+                    used_key_words = self.words[j * 8 : j * 8 - 3]
+                plaintext_seg = self.EncryRound(
+                    plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
+                )
+
+            if self.key_size == 128:
+                used_key_words = self.words[self.n_rounds * 4 : self.n_rounds * 4 - 3]
+            elif self.key_size == 192:
+                used_key_words = self.words[self.n_rounds * 6 : self.n_rounds * 6 - 3]
+            else:
+                used_key_words = self.words[self.n_rounds * 8 : self.n_rounds * 8 - 3]
+            plaintext_seg = self.final_encryption_round(
+                plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
+            )
+            ciphertext.append(plaintext_seg)
+        return ciphertext
 
     def EncryRound(self, data, key):
 
@@ -100,6 +139,8 @@ class AES:
         """
         temp_sbox = []
         if len(data) != 16:
+            raise ValueError("Data length is incorrect", data)
+        if len(key) != 16:
             raise ValueError("Data length is incorrect", data)
         # SBox substitution layer.
         for i in data:
@@ -133,14 +174,52 @@ class AES:
         temp_shiftR = helpfs.List2_2DMatrix(temp_sbox)
         temp_shiftR = self.ForwardShiftRows(temp_shiftR)
         # Key addition
-        final_temp = self.KeyAdd(temp_mixCol1, key)
+        final_temp = self.KeyAdd(helpfs.Martix2D2List1D(temp_shiftR), key)
         return final_temp
 
     def decryption_round(self, data, key):
-        pass
+        temp_sbox = []
+        if len(data) != 16:
+            raise ValueError("Data length is incorrect", data)
+        if len(key) != 16:
+            raise ValueError("Data length is incorrect", data)
+        # Key addition
+        key_added = self.KeyAdd(data, key)
+        # Inverse Mix Column sublayer
+        temp_mix_col = []
+        for i in range(0, 16, 4):
+            temp_mix_col.extend(
+                self.InverseMixColumn(helpfs.Row2Col(key_added[i : i + 4]))
+            )
+        # Inverse Shift Rows sublayer.
+        temp_shiftR = helpfs.List2_2DMatrix(temp_mix_col)
+        temp_shiftR = self.InverseShiftRows(temp_shiftR)
+        data = helpfs.Martix2D2List1D(temp_shiftR)
+        final_temp = []
+        # Inverse SBox substitution layer.
+        for i in data:
+            a = helpfs.Int2DecimalHex(i)
+            final_temp.append(self.CalcInverseSubstitutionByte(a[0], a[1]))
+        return final_temp
 
-    def final_decryption_round(self,  data,  key):
-        pass
+    def first_decryption_round(self, data, key):
+        temp_sbox = []
+        if len(data) != 16:
+            raise ValueError("Data length is incorrect", data)
+        if len(key) != 16:
+            raise ValueError("Data length is incorrect", data)
+        # Key addition
+        key_added = self.KeyAdd(data, key)
+        # Inverse Shift Rows sublayer.
+        temp_shiftR = helpfs.List2_2DMatrix(key_added)
+        temp_shiftR = self.InverseShiftRows(temp_shiftR)
+        data = helpfs.Martix2D2List1D(temp_shiftR)
+        final_temp = []
+        # Inverse SBox substitution layer.
+        for i in data:
+            a = helpfs.Int2DecimalHex(i)
+            final_temp.append(self.CalcInverseSubstitutionByte(a[0], a[1]))
+        return final_temp
 
     def CalcForwardSubstitutionByte(self, x, y, return_type="d"):
         """
