@@ -79,11 +79,11 @@ class AES:
                 )
 
             if self.key_size == 128:
-                used_key_words = self.words[self.n_rounds * 4 : self.n_rounds * 4 - 3]
+                used_key_words = self.words[48:51]
             elif self.key_size == 192:
-                used_key_words = self.words[self.n_rounds * 6 : self.n_rounds * 6 - 3]
+                used_key_words = self.words[48:51]
             else:
-                used_key_words = self.words[self.n_rounds * 8 : self.n_rounds * 8 - 3]
+                used_key_words = self.words[56:59]
             plaintext_seg = self.final_encryption_round(
                 plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
             )
@@ -91,41 +91,42 @@ class AES:
         return ciphertext
 
     def decrypt_encryption_text(self, ciphertext, ciphertext_type="int"):
+        plaintext = []
         for i in range(0, math.ceil(len(ciphertext) / 16)):
-            plaintext_seg = plaintext[i * 16 : i * 16 - 1]
+            ciphertext_seg = ciphertext[i * 16 : i * 16 - 1]
             used_key_words = []
             if self.key_size == 128:
-                used_key_words = self.words[0:3]
+                used_key_words = self.words[40:43]
             elif self.key_size == 192:
-                used_key_words = self.words[0:3]
+                used_key_words = self.words[48:51]
             else:
-                used_key_words = self.words[0:3]
+                used_key_words = self.words[56:59]
 
-            plaintext_seg = self.KeyAdd(
-                plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
+            ciphertext_seg = self.first_decryption_round(
+                ciphertext_seg, self.aes_key.WordMat2KeyList(used_key_words)
             )
-            for j in range(1, self.n_rounds - 1):
+            for j in range(self.n_rounds - 1, 1):
                 if self.key_size == 128:
                     used_key_words = self.words[j * 4 : j * 4 - 3]
                 elif self.key_size == 192:
                     used_key_words = self.words[j * 6 : j * 6 - 3]
                 else:
                     used_key_words = self.words[j * 8 : j * 8 - 3]
-                plaintext_seg = self.EncryRound(
-                    plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
+                ciphertext_seg = self.EncryRound(
+                    ciphertext_seg, self.aes_key.WordMat2KeyList(used_key_words)
                 )
 
             if self.key_size == 128:
-                used_key_words = self.words[self.n_rounds * 4 : self.n_rounds * 4 - 3]
+                used_key_words = self.words[0:3]
             elif self.key_size == 192:
-                used_key_words = self.words[self.n_rounds * 6 : self.n_rounds * 6 - 3]
+                used_key_words = self.words[0:3]
             else:
-                used_key_words = self.words[self.n_rounds * 8 : self.n_rounds * 8 - 3]
-            plaintext_seg = self.final_encryption_round(
-                plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words)
+                used_key_words = self.words[0:3]
+            ciphertext_seg = self.KeyAdd(
+                ciphertext_seg, self.aes_key.WordMat2KeyList(used_key_words)
             )
-            ciphertext.append(plaintext_seg)
-        return ciphertext
+            plaintext.append(ciphertext_seg)
+        return plaintext
 
     def EncryRound(self, data, key):
 
