@@ -3,6 +3,7 @@ from pyfinite import ffield
 from pyfinite import genericmatrix
 import AESKey as keym
 import HelpingFunctions as helpfs
+import  math
 
 
 class AES:
@@ -32,8 +33,9 @@ class AES:
         self.key_size = key_size
         self.aes_key = keym.AESkey(self.key_size)
         self.key = self.aes_key.key
+        self.words = self.aes_key.words
 
-    def encypt_plaintext(self, plaintext, plaintext_type="int"):
+    def encypt_plaintext(self, plaintext: list, plaintext_type="int"):
         """
         This method encrypt plain  text of type plaintext_type and return the encrypted
         text.
@@ -47,6 +49,43 @@ class AES:
         str -> for string input
         hex -> array  of  hex values
         """
+        ciphertext =  [];
+        #check that the data doesn't  excced 1 byte each
+        for i in range(0, len(plaintext) - 1):
+            if plaintext[i] > 255:
+                raise  ValueError("plaintext  elements cannot excceed  1 byte")
+        for i in  range(0, math.ceil(len(plaintext)/16)):
+            plaintext_seg = plaintext[i*16: i*16-1]
+            used_key_words =  []
+            if self.key_size == 128:
+                used_key_words  = self.words[0: 3]
+            elif self.key_size == 192:
+                used_key_words  = self.words[0: 3]
+            else:
+                used_key_words  = self.words[0: 3]
+
+            plaintext_seg = self.KeyAdd(plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words))
+            for j in range(1, self.n_rounds -1):
+                if self.key_size == 128:
+                    used_key_words  = self.words[j*4: j*4-3]
+                elif self.key_size == 192:
+                    used_key_words  = self.words[j*6: j*6-3]
+                else:
+                    used_key_words  = self.words[j*8: j*8-3]
+                plaintext_seg = self.EncryRound(plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words))
+            
+            if self.key_size == 128:
+                used_key_words  = self.words[j*4: j*4-3]
+            elif self.key_size == 192:
+                used_key_words  = self.words[j*6: j*6-3]
+            else:
+                used_key_words  = self.words[j*8: j*8-3]
+            plaintext_seg = self.final_encryption_round(plaintext_seg, self.aes_key.WordMat2KeyList(used_key_words))
+            ciphertext.append(plaintext_seg)
+        return ciphertext
+
+
+    def decrypt_encryption_text(self, encryption_text, plaintext_type="int"):
         pass
 
     def EncryRound(self, data, key):
@@ -59,7 +98,6 @@ class AES:
         key -- the  encryption key which  is  a  list of integers with length depending on  the key  size.
 
         """
-
         temp_sbox = []
         if len(data) != 16:
             raise ValueError("Data length is incorrect", data)
@@ -80,6 +118,29 @@ class AES:
         # Key addition
         final_temp = self.KeyAdd(temp_mixCol1, key)
         return final_temp
+
+    def final_encryption_round(self, data, key):
+        temp_sbox = []
+        if len(data) != 16:
+            raise ValueError("Data length is incorrect", data)
+        if len(key) != 16:
+            raise ValueError("Data length is incorrect", data)
+        # SBox substitution layer.
+        for i in data:
+            a = helpfs.Int2DecimalHex(i)
+            temp_sbox.append(self.CalcForwardSubstitutionByte(a[0], a[1]))
+        # Shift Rows sublayer.
+        temp_shiftR = helpfs.List2_2DMatrix(temp_sbox)
+        temp_shiftR = self.ForwardShiftRows(temp_shiftR)
+        # Key addition
+        final_temp = self.KeyAdd(temp_mixCol1, key)
+        return final_temp
+
+    def decryption_round(self, data, key):
+        pass
+
+    def final_decryption_round(self,  data,  key):
+        pass
 
     def CalcForwardSubstitutionByte(self, x, y, return_type="d"):
         """
