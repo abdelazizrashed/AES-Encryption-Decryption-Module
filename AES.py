@@ -1,7 +1,7 @@
 import numpy as np
 from pyfinite import ffield
 from pyfinite import genericmatrix
-import AESKey as keym
+from AESKey import AESKey
 import HelpingFunctions as helpfs
 import math
 
@@ -20,9 +20,9 @@ class AES:
     AND = lambda x, y: x & y
     DIV = lambda x, y: x
 
-    def __init__(self, key_size):
+    def __init__(self, key_size: int, is_called_from_aes_key=False):
         # key is the key list every field of it is a byte
-        if key_size not in (128, 192, 256):
+        if key_size != 128 and key_size != 192 and key_size != 256:
             raise ValueError("Invalid key size")
         elif key_size == 128:
             self.n_rounds = 10
@@ -31,9 +31,10 @@ class AES:
         elif key_size == 256:
             self.n_rounds = 14
         self.key_size = key_size
-        self.aes_key = keym.AESkey(self.key_size)
-        self.key = self.aes_key.key
-        self.words = self.aes_key.words
+        if not is_called_from_aes_key:
+            self.aes_key = AESKey(self.key_size)
+            self.key = self.aes_key.key
+            self.words = self.aes_key.words
 
     def encypt_plaintext(self, plaintext: list, plaintext_type="int"):
         """
@@ -56,6 +57,9 @@ class AES:
                 raise ValueError("plaintext  elements cannot excceed  1 byte")
         for i in range(0, math.ceil(len(plaintext) / 16)):
             plaintext_seg = plaintext[i * 16 : i * 16 - 1]
+            if len(plaintext_seg < 16):
+                for _ in range(len(plaintext_seg) - 16):
+                    plaintext_seg.append(0)
             used_key_words = []
             if self.key_size == 128:
                 used_key_words = self.words[0:3]
@@ -90,10 +94,13 @@ class AES:
             ciphertext.append(plaintext_seg)
         return ciphertext
 
-    def decrypt_encryption_text(self, ciphertext, ciphertext_type="int"):
+    def decrypt_ciphertext(self, ciphertext, ciphertext_type="int"):
         plaintext = []
         for i in range(0, math.ceil(len(ciphertext) / 16)):
             ciphertext_seg = ciphertext[i * 16 : i * 16 - 1]
+            # if len(ciphertext_seg < 16):
+            #     for _ in range(len(ciphertext_seg) - 16):
+            #         ciphertext_seg.append(0)
             used_key_words = []
             if self.key_size == 128:
                 used_key_words = self.words[40:43]
@@ -280,9 +287,9 @@ class AES:
         temp = helpfs.ConvertTo8BitsInverted(inverse_xy)
         affine_mapping_input.SetRow(0, temp)
         affine_mapping_input.Transpose()
-        affine_mapping_output = (
-            affine_mapping_matrix * affine_mapping_input + affine_mapping_vector
-        )
+        multiplication = affine_mapping_matrix * affine_mapping_input
+        affine_mapping_output = multiplication + affine_mapping_vector
+
         a = affine_mapping_output.data
         b = helpfs.BitsListToDecimal(a)
         if return_type == "b":
@@ -375,7 +382,7 @@ class AES:
                 hex_y = hex(y)[2:]
                 col_index = y + 1
                 s_box[row_index][col_index] = self.CalcForwardSubstitutionByte(
-                    x, y, return_type="h"
+                    self, x, y, return_type="h"
                 )
                 if x == 1 or y == 1:  # Intialise the table with its headers
                     s_box[0][col_index] = hex_y
