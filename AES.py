@@ -1,12 +1,18 @@
+import base64
+import hashlib
+import random
+from Crypto import Random
+from Crypto.Cipher import AES
 import numpy as np
 from pyfinite import ffield
 from pyfinite import genericmatrix
 from AESKey import AESKey
 import HelpingFunctions as helpfs
 import math
+import re
 
 
-class AES:
+class AESCipher:
     """
     AES encryption decryption algorithm.
     The Encryption data enters as dicimal bytes.
@@ -20,23 +26,30 @@ class AES:
     AND = lambda x, y: x & y
     DIV = lambda x, y: x
 
-    def __init__(self, key_size: int, is_called_from_aes_key=False):
-        # key is the key list every field of it is a byte
-        if key_size != 128 and key_size != 192 and key_size != 256:
-            raise ValueError("Invalid key size")
-        elif key_size == 128:
-            self.n_rounds = 10
-        elif key_size == 192:
-            self.n_rounds = 12
-        elif key_size == 256:
-            self.n_rounds = 14
-        self.key_size = key_size
-        if not is_called_from_aes_key:
-            self.aes_key = AESKey(self.key_size)
-            self.key = self.aes_key.key
-            self.words = self.aes_key.words
+    def __init__(self, key_size: int, is_called_from_aes_key=False, is_test=True):
+        if is_test:
+            key = self.generate_key(256)
+            self.bs = AES.block_size
+            self.key = hashlib.sha256(key.encode()).digest()
+        else:
+            # key is the key list every field of it is a byte
+            if key_size != 128 and key_size != 192 and key_size != 256:
+                raise ValueError("Invalid key size")
+            elif key_size == 128:
+                self.n_rounds = 10
+            elif key_size == 192:
+                self.n_rounds = 12
+            elif key_size == 256:
+                self.n_rounds = 14
+            self.key_size = key_size
+            if not is_called_from_aes_key:
+                self.aes_key = AESKey(self.key_size)
+                self.key = self.aes_key.key
+                self.words = self.aes_key.words
 
-    def encypt_plaintext(self, plaintext: list, plaintext_type="int"):
+    # region AES blocks
+
+    def encypt_(self, plaintext: list, plaintext_type="int"):
         """
         This method encrypt plain  text of type plaintext_type and return the encrypted
         text.
@@ -94,7 +107,7 @@ class AES:
             ciphertext.append(plaintext_seg)
         return ciphertext
 
-    def decrypt_ciphertext(self, ciphertext, ciphertext_type="int"):
+    def decrypt_(self, ciphertext, ciphertext_type="int"):
         plaintext = []
         for i in range(0, math.ceil(len(ciphertext) / 16)):
             ciphertext_seg = ciphertext[i * 16 : i * 16 - 1]
@@ -287,8 +300,8 @@ class AES:
         temp = helpfs.ConvertTo8BitsInverted(inverse_xy)
         affine_mapping_input.SetRow(0, temp)
         affine_mapping_input.Transpose()
-        multiplication = affine_mapping_matrix * affine_mapping_input
-        affine_mapping_output = multiplication + affine_mapping_vector
+        multiplication = np.matmul(affine_mapping_matrix * affine_mapping_input)
+        affine_mapping_output = np.add(multiplication + affine_mapping_vector)
 
         a = affine_mapping_output.data
         b = helpfs.BitsListToDecimal(a)
@@ -500,3 +513,50 @@ class AES:
     def KeyAdd(self, data, key):
         for i in range(16):
             data[i] ^= key[i]
+
+    # endregion
+
+    # region Test code
+    def encrypt(self, raw):
+        raw = self._pad(raw)
+        iv = Random.new().read(AES.block_size)
+        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        c = base64.b64encode(iv + cipher.encrypt(raw.encode()))
+        enc = base64.b64decode(c)
+        return c
+
+    def decrypt(self, enc):
+        enc = base64.b64decode(enc)
+        iv = enc[: AES.block_size]
+        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        return self._unpad(cipher.decrypt(enc[AES.block_size :])).decode("utf-8")
+
+    def _pad(self, s):
+        return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
+
+    @staticmethod
+    def _unpad(s):
+        return s[: -ord(s[len(s) - 1 :])]
+
+    def generate_key(self, key_size):
+        return "".join(chr(random.randint(0, 0xFF)) for i in range(int(key_size / 8)))
+
+    def generate_iv(self):
+        return "".join([chr(random.randint(0, 0xFF)) for i in range(16)])
+
+    @staticmethod
+    def decode_base64(data, altchars=b"+/"):
+        """Decode base64, padding being optional.
+
+        :param data: Base64 data as an ASCII byte string
+        :returns: The decoded byte string.
+
+        """
+        data = re.sub(rb"[^a-zA-Z0-9%s]+" % altchars, b"", data)  # normalize
+        missing_padding = len(data) % 4
+        if missing_padding:
+            data += b"=" * (4 - missing_padding)
+        return base64.b64decode(data, altchars)
+
+
+# endregion
